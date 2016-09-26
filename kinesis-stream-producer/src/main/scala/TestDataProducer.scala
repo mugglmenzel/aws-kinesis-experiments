@@ -16,7 +16,7 @@ case class TestDataProducer(streamName: String = "KinesisLab", dataSample: Strin
 
 
   val kinesis: AmazonKinesis = proxy
-    .fold(new AmazonKinesisClient().withRegion(region))(host =>
+    .fold[AmazonKinesis](new AmazonKinesisClient().withRegion(region).asInstanceOf[AmazonKinesis])(host =>
       AmazonKinesisClientBuilder.standard()
         .withClientConfiguration(new ClientConfiguration().withProxyHost(host).withProxyPort(proxyPort))
         .withRegion(region)
