@@ -1,0 +1,4 @@
+ami-e098dc93 Producer (from t2.small setup)
+ami-4a9fdb39 Producer (from m3.xlarge setup)
+ami-af9edadc TinyProxy
+ami-bf98dccc AWS CLI with TinyProxy in env
