@@ -12,16 +12,16 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
   * Created by menzelmi on 26.09.16.
   */
-case class TestDataProducer(streamName: String = "KinesisLab", dataSample: String = "test", region: Regions = Regions.EU_WEST_1, produceThrottle: Int = 0, proxy: Option[String] = None, proxyPort: Int = 8888) {
+case class TestDataProducer(streamName: String = "KinesisLab", dataSample: String = "test", region: Regions = Regions.EU_WEST_1, produceThrottle: Int = 0, proxy: Option[String] = None, proxyPort: Int = 8888, produceOnly: Boolean = false) {
 
 
   val kinesis: AmazonKinesis = proxy
     .fold[AmazonKinesis](new AmazonKinesisClient().withRegion(region).asInstanceOf[AmazonKinesis])(host =>
-      AmazonKinesisClientBuilder.standard()
-        .withClientConfiguration(new ClientConfiguration().withProxyHost(host).withProxyPort(proxyPort))
-        .withRegion(region)
-        .build()
-    )
+    AmazonKinesisClientBuilder.standard()
+      .withClientConfiguration(new ClientConfiguration().withProxyHost(host).withProxyPort(proxyPort))
+      .withRegion(region)
+      .build()
+  )
   val stream = kinesis.describeStream(streamName).getStreamDescription
   val shards = stream.getShards
   val hashKeys = stream.getShards.map(_.getHashKeyRange.getStartingHashKey)
@@ -61,26 +61,28 @@ case class TestDataProducer(streamName: String = "KinesisLab", dataSample: Strin
   }
 
   def consumeAllShards = {
-    shards.toIterable.foreach(consume)
+    if (!produceOnly)
+      shards.toIterable.foreach(consume)
 
     this
   }
 
   def consume(shard: Shard) = {
-    Future {
-      var shardIterator = kinesis.getShardIterator(streamName, shard.getShardId, ShardIteratorType.LATEST.name()).getShardIterator
-      while (true) {
-        val records = kinesis.getRecords(
-          new GetRecordsRequest()
-            .withLimit(1)
-            .withShardIterator(shardIterator))
-        shardIterator = records.getNextShardIterator
-        records.getRecords.toIterable
-          .foreach { get =>
-            println(s"GET: ${shard.getShardId}/${get.getSequenceNumber} ${get.getPartitionKey}-${get.getData}")
-          }
+    if (!produceOnly)
+      Future {
+        var shardIterator = kinesis.getShardIterator(streamName, shard.getShardId, ShardIteratorType.LATEST.name()).getShardIterator
+        while (true) {
+          val records = kinesis.getRecords(
+            new GetRecordsRequest()
+              .withLimit(1)
+              .withShardIterator(shardIterator))
+          shardIterator = records.getNextShardIterator
+          records.getRecords.toIterable
+            .foreach { get =>
+              println(s"GET: ${shard.getShardId}/${get.getSequenceNumber} ${get.getPartitionKey}-${get.getData}")
+            }
+        }
       }
-    }
 
     this
   }

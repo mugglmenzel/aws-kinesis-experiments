@@ -17,6 +17,7 @@ object DataProducerApp extends App {
     opt[Int]('t', "produce-throttle").optional().action((value, producer) => producer.copy(produceThrottle = value))
     opt[String]('p', "proxy").optional().action((value, producer) => producer.copy(proxy = Some(value)))
     opt[Int]('P', "proxy-port").optional().action((value, producer) => producer.copy(proxyPort = value))
+    opt[Unit]('o', "produce-only").optional().action((nada, producer) => producer.copy(produceOnly = true))
   }.parse(args, TestDataProducer()) match {
     case Some(producer) =>
       producer.printInfos.consumeAllShards.produce
