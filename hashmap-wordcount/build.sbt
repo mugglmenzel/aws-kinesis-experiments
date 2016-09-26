@@ -2,5 +2,7 @@ name := "hashmap-wordcount"
 
 version := "1.0"
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.8"
+
+mainClass in Compile := Some("FileWordCount")
     
