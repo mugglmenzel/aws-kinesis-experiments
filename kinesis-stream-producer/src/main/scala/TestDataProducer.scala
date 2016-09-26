@@ -16,12 +16,12 @@ case class TestDataProducer(streamName: String = "KinesisLab", dataSample: Strin
 
 
   val kinesis: AmazonKinesis = proxy
-    .map(host =>
+    .fold(new AmazonKinesisClient().withRegion(region))(host =>
       AmazonKinesisClientBuilder.standard()
         .withClientConfiguration(new ClientConfiguration().withProxyHost(host).withProxyPort(proxyPort))
         .withRegion(region)
         .build()
-    ).getOrElse(new AmazonKinesisClient().withRegion(region))
+    )
   val stream = kinesis.describeStream(streamName).getStreamDescription
   val shards = stream.getShards
   val hashKeys = stream.getShards.map(_.getHashKeyRange.getStartingHashKey)

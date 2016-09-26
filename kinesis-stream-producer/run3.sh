@@ -8,5 +8,5 @@ if [ ! -e target/scala-2.11/kinesis-stream-producer-assembly-1.0.jar ]
         sbt assembly || echo "SBT is required!"
 fi
 
-echo "Running ktdp with a 3 shard Kinesis stream..."
+echo "Running ktdp with a 3-sharded Kinesis stream..."
 java -jar target/scala-2.11/kinesis-stream-producer-assembly-1.0.jar -n KinesisLab
