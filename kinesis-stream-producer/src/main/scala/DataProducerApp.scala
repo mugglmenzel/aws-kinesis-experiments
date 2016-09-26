@@ -15,6 +15,8 @@ object DataProducerApp extends App {
     opt[String]('d', "data").optional().action((value, producer) => producer.copy(dataSample = value))
     opt[Regions]('r', "region").optional().action((value, producer) => producer.copy(region = value))
     opt[Int]('t', "produce-throttle").optional().action((value, producer) => producer.copy(produceThrottle = value))
+    opt[String]('p', "proxy").optional().action((value, producer) => producer.copy(proxy = Some(value)))
+    opt[Int]('P', "proxy-port").optional().action((value, producer) => producer.copy(proxyPort = value))
   }.parse(args, TestDataProducer()) match {
     case Some(producer) =>
       producer.printInfos.consumeAllShards.produce

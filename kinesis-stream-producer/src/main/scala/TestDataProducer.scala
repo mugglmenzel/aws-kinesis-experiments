@@ -1,9 +1,10 @@
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 
+import com.amazonaws.ClientConfiguration
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.kinesis.model.{GetRecordsRequest, PutRecordRequest, Shard, ShardIteratorType}
-import com.amazonaws.services.kinesis.{AmazonKinesis, AmazonKinesisClient}
+import com.amazonaws.services.kinesis.{AmazonKinesis, AmazonKinesisClient, AmazonKinesisClientBuilder}
 
 import scala.collection.JavaConversions._
 import scala.concurrent.{ExecutionContext, Future}
@@ -11,9 +12,16 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
   * Created by menzelmi on 26.09.16.
   */
-case class TestDataProducer(streamName: String = "KinesisLab", dataSample: String = "test", region: Regions = Regions.EU_WEST_1, produceThrottle: Int = 0) {
+case class TestDataProducer(streamName: String = "KinesisLab", dataSample: String = "test", region: Regions = Regions.EU_WEST_1, produceThrottle: Int = 0, proxy: Option[String] = None, proxyPort: Int = 8888) {
 
-  val kinesis: AmazonKinesis = new AmazonKinesisClient().withRegion(region)
+
+  val kinesis: AmazonKinesis = proxy
+    .map(host =>
+      AmazonKinesisClientBuilder.standard()
+        .withClientConfiguration(new ClientConfiguration().withProxyHost(host).withProxyPort(proxyPort))
+        .withRegion(region)
+        .build()
+    ).getOrElse(new AmazonKinesisClient().withRegion(region))
   val stream = kinesis.describeStream(streamName).getStreamDescription
   val shards = stream.getShards
   val hashKeys = stream.getShards.map(_.getHashKeyRange.getStartingHashKey)
