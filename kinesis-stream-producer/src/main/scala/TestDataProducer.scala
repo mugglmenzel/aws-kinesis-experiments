@@ -5,9 +5,11 @@ import com.amazonaws.ClientConfiguration
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.kinesis.model.{GetRecordsRequest, PutRecordRequest, Shard, ShardIteratorType}
 import com.amazonaws.services.kinesis.{AmazonKinesis, AmazonKinesisClient, AmazonKinesisClientBuilder}
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Created by menzelmi on 26.09.16.
@@ -28,6 +30,8 @@ case class TestDataProducer(streamName: String = "KinesisLab", dataSample: Strin
 
   implicit val executionCtx = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1 + shards.size()))
 
+  lazy val logger = LoggerFactory.getLogger(getClass.getName)
+
   def printInfos = {
     println
     println("=" * 24)
@@ -46,13 +50,21 @@ case class TestDataProducer(streamName: String = "KinesisLab", dataSample: Strin
       while (true)
         hashKeys.foreach { hashKey =>
           lazy val dataBytes = "test".getBytes
-          val put = kinesis.putRecord(
-            new PutRecordRequest()
-              .withStreamName(streamName)
-              .withData(ByteBuffer.allocate(dataBytes.length).put(dataBytes))
-              .withPartitionKey("partitionKey-" + hashKey)
-              .withExplicitHashKey(hashKey))
-          println(s"PUT: ${put.getShardId}/${put.getSequenceNumber}")
+          Try(
+            kinesis.putRecord(
+              new PutRecordRequest()
+                .withStreamName(streamName)
+                .withData(ByteBuffer.allocate(dataBytes.length).put(dataBytes))
+                .withPartitionKey("partitionKey-" + hashKey)
+                .withExplicitHashKey(hashKey)
+            )
+          ) match {
+            case Success(put) =>
+              println(s"PUT: ${put.getShardId}/${put.getSequenceNumber}")
+            case Failure(e) =>
+              logger.warn("Could not put record.", e)
+          }
+
           Thread.sleep(produceThrottle)
         }
     }
@@ -72,15 +84,23 @@ case class TestDataProducer(streamName: String = "KinesisLab", dataSample: Strin
       Future {
         var shardIterator = kinesis.getShardIterator(streamName, shard.getShardId, ShardIteratorType.LATEST.name()).getShardIterator
         while (true) {
-          val records = kinesis.getRecords(
-            new GetRecordsRequest()
-              .withLimit(1)
-              .withShardIterator(shardIterator))
-          shardIterator = records.getNextShardIterator
-          records.getRecords.toIterable
-            .foreach { get =>
-              println(s"GET: ${shard.getShardId}/${get.getSequenceNumber} ${get.getPartitionKey}-${get.getData}")
-            }
+          Try(
+            kinesis.getRecords(
+              new GetRecordsRequest()
+                .withLimit(10)
+                .withShardIterator(shardIterator)
+            )
+          ) match {
+            case Success(records) =>
+              shardIterator = records.getNextShardIterator
+              records.getRecords.toIterable
+                .foreach {
+                  get =>
+                    println(s"GET: ${shard.getShardId}/${get.getSequenceNumber} ${get.getPartitionKey}-${get.getData}")
+                }
+            case Failure(e) =>
+              logger.warn("Could not get records.", e)
+          }
         }
       }
 
